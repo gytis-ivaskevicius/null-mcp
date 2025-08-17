@@ -1,0 +1,58 @@
+name: Publish to JSR
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: # Allow manual trigger from master branch
+    inputs:
+      version:
+        description: 'Version to publish'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    # Only run on master branch
+    if: github.ref == 'refs/heads/master' || github.event_name == 'release'
+    
+    permissions:
+      contents: read
+      id-token: write # Required for JSR publishing
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Verify package
+        run: |
+          deno task check
+          deno task test
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Remove 'v' prefix from tag if present (e.g., v1.0.0 -> 1.0.0)
+            VERSION=${GITHUB_REF#refs/tags/}
+            VERSION=${VERSION#v}
+          else
+            # Use manual input version
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version in deno.json
+        run: |
+          # Use jq to update the version field
+          jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' deno.json > temp.json
+          mv temp.json deno.json
+
+      - name: Publish to JSR
+        run: deno publish
