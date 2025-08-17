@@ -20,7 +20,7 @@ Add NullMCP to your TypeScript project:
 ```typescript
 #!/usr/bin/env -S deno run --allow-net --allow-read --allow-env --allow-run
 import { NullMCP, toolTextResult } from "jsr:@gytis/null-mcp"
-import { z } from "zod"
+import { z } from "npm:zod@^3.23.8" // Incompatibility issues with Zod v4 on @modelcontextprotocol/sdk side
 
 await new NullMCP({ name: "my-project-mcp", version: "1.0.0" })
   .registerTools({
