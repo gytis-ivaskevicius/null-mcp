@@ -1,20 +1,26 @@
-name: Publish to JSR
+name: Release and Publish
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 1.0.0)"
+        required: true
+        type: string
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write # Required to create releases and push tags
       id-token: write # Required for JSR publishing
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v1
@@ -26,19 +32,38 @@ jobs:
           deno task check
           deno task test
 
-      - name: Extract version from tag
-        id: version
-        run: |
-          # Remove 'v' prefix from tag if present (e.g., v1.0.0 -> 1.0.0)
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Update version in deno.json
         run: |
           # Use jq to update the version field
-          jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' deno.json > temp.json
+          jq --arg version "${{ github.event.inputs.version }}" '.version = $version' deno.json > temp.json
           mv temp.json deno.json
 
+      - name: Commit and push version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add deno.json
+          git commit -m "Release v${{ github.event.inputs.version }}"
+          git push
+
+      - name: Create and push tag
+        run: |
+          git tag "v${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ github.event.inputs.version }}"
+          release_name: "v${{ github.event.inputs.version }}"
+          body: |
+            Release v${{ github.event.inputs.version }}
+
+            Published to JSR: https://jsr.io/@gytis/null-mcp
+          draft: false
+          prerelease: false
+
       - name: Publish to JSR
-        run: deno publish --allow-dirty
+        run: deno publish
