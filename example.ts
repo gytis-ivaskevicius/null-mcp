@@ -1,7 +1,6 @@
 #!/usr/bin/env -S deno run --allow-net --allow-read --allow-env --allow-run
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { NullMCP, resourceTextResult, toolTextResult } from "./NullMCP.ts"
-import { z } from "zod"
+import { NullMCP, resourceTextResult, toolTextResult, z } from "./mod.ts"
 
 const decoder = new TextDecoder()
 
