@@ -3,20 +3,11 @@ name: Publish to JSR
 on:
   release:
     types: [published]
-  workflow_dispatch: # Allow manual trigger from master branch
-    inputs:
-      version:
-        description: 'Version to publish'
-        required: true
-        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    
-    # Only run on master branch
-    if: github.ref == 'refs/heads/master' || github.event_name == 'release'
-    
+
     permissions:
       contents: read
       id-token: write # Required for JSR publishing
@@ -35,17 +26,12 @@ jobs:
           deno task check
           deno task test
 
-      - name: Extract version
+      - name: Extract version from tag
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            # Remove 'v' prefix from tag if present (e.g., v1.0.0 -> 1.0.0)
-            VERSION=${GITHUB_REF#refs/tags/}
-            VERSION=${VERSION#v}
-          else
-            # Use manual input version
-            VERSION="${{ github.event.inputs.version }}"
-          fi
+          # Remove 'v' prefix from tag if present (e.g., v1.0.0 -> 1.0.0)
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Update version in deno.json

@@ -1,6 +1,6 @@
-import { McpServer, ReadResourceCallback, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { McpServer, type ReadResourceCallback, type ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { ServerOptions, Transport } from "@modelcontextprotocol/sdk"
+import type { ServerOptions, Transport } from "@modelcontextprotocol/sdk"
 import type {
   CallToolResult,
   ContentBlock,
@@ -8,7 +8,7 @@ import type {
   ReadResourceResult,
   ToolAnnotations,
 } from "@modelcontextprotocol/sdk/types.js"
-import { type ZodRawShape } from "zod"
+import type { ZodRawShape } from "zod"
 
 /** MCP tool configuration for AI assistants. */
 export type Tool<InputArgs extends ZodRawShape, OutputArgs extends ZodRawShape> = {
