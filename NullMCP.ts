@@ -10,31 +10,52 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js"
 import { type ZodRawShape } from "zod"
 
+/** MCP tool configuration for AI assistants. */
 export type Tool<InputArgs extends ZodRawShape, OutputArgs extends ZodRawShape> = {
+  /** Tool title */
   title?: string
+  /** Tool description */
   description?: string
+  /** Input schema (Zod) */
   inputSchema?: InputArgs
+  /** Output schema (Zod) */
   outputSchema?: OutputArgs
+  /** Tool annotations */
   annotations?: ToolAnnotations
+  /** Tool implementation */
   callback: ToolCallback<InputArgs>
+  /** CLI input parser for testing via CLI */
   test?: (input: string) => Record<string, unknown>
 }
 
+/** MCP resource configuration for data access. */
 export type Resource = {
+  /** Resource URI */
   uri: string
+  /** Resource title */
   title?: string
+  /** Resource description */
   description?: string
+  /** Content MIME type */
   mimeType?: string
+  /** Resource content provider */
   callback: ReadResourceCallback
+  /** CLI input parser for testing via CLI */
   test?: (input: string) => string
 }
 
+/** Main MCP server class with built-in CLI testing. */
 export class NullMCP {
   server: McpServer
   private _connected = false
   private _tools: Record<string, Tool<ZodRawShape, ZodRawShape>> = {}
   private _resources: Record<string, Resource> = {}
 
+  /**
+   * Create a new MCP server instance.
+   * @param serverInfo Server name and version
+   * @param options Optional server configuration
+   */
   constructor(serverInfo: Implementation, options?: ServerOptions) {
     if (!serverInfo.name?.trim()) {
       throw new Error("Server name is required")
@@ -45,6 +66,11 @@ export class NullMCP {
     this.server = new McpServer(serverInfo, options)
   }
 
+  /**
+   * Register tools with the MCP server.
+   * @param tools Object mapping tool names to tool configurations
+   * @returns This instance for method chaining
+   */
   registerTools(tools: Record<string, Tool<ZodRawShape, ZodRawShape>>): NullMCP {
     this._tools = { ...this._tools, ...tools }
     Object.entries(tools).forEach(([name, tool]) => {
@@ -67,6 +93,11 @@ export class NullMCP {
     return this
   }
 
+  /**
+   * Register resources with the MCP server.
+   * @param resources Object mapping resource names to resource configurations
+   * @returns This instance for method chaining
+   */
   registerResources(resources: Record<string, Resource>): NullMCP {
     this._resources = { ...this._resources, ...resources }
     Object.entries(resources).forEach(([name, resource]) => {
@@ -89,6 +120,10 @@ export class NullMCP {
     return this
   }
 
+  /**
+   * Connect the MCP server or run CLI command.
+   * @param transport Optional transport layer (defaults to stdio)
+   */
   async connect(transport?: Transport) {
     if (this._connected) {
       throw new Error("Server already connected")
@@ -182,14 +217,30 @@ export class NullMCP {
   }
 }
 
+/**
+ * Helper function to create a text content block.
+ * @param text The text content
+ * @returns Content block object
+ */
 export function toolTextContent(text: string): ContentBlock {
   return { type: "text", text }
 }
 
+/**
+ * Helper function to create a tool result with text content.
+ * @param text The response text
+ * @returns Tool call result
+ */
 export function toolTextResult(text: string): CallToolResult {
   return { content: [toolTextContent(text)] }
 }
 
+/**
+ * Helper function to create a resource result with text content.
+ * @param uri The resource URI
+ * @param text The resource content
+ * @returns Resource read result
+ */
 export function resourceTextResult(uri: string, text: string): ReadResourceResult {
   return { contents: [{ uri, text }] }
 }
