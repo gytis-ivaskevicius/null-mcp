@@ -1,4 +1,7 @@
 {
+  "name": "@gytis/null-mcp",
+  "version": "1.0.0",
+  "exports": "./mod.ts",
   "tasks": {
     "test": "deno test --allow-run --allow-read --allow-env --no-check test.ts",
     "check": "deno fmt && deno lint --fix && deno check ."

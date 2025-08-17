@@ -1,0 +1,25 @@
+{
+  "name": "@your-username/null-mcp",
+  "version": "1.0.0",
+  "description": "A minimal TypeScript library for building custom Model Context Protocol (MCP) servers with built-in CLI testing",
+  "license": "MIT",
+  "exports": "./mod.ts",
+  "imports": {
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.17.3",
+    "zod": "npm:zod@^3.23.8"
+  },
+  "tasks": {
+    "test": "deno test --allow-run --allow-read --allow-env --no-check test.ts",
+    "check": "deno fmt && deno lint --fix && deno check ."
+  },
+  "include": [
+    "./mod.ts",
+    "./NullMCP.ts",
+    "./README.md"
+  ],
+  "exclude": [
+    "./example.ts",
+    "./test.ts",
+    "./.mcp.json"
+  ]
+}
