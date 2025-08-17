@@ -14,5 +14,6 @@
   "fmt": {
     "lineWidth": 120,
     "semiColons": false
-  }
+  },
+  "version": "1.0.1"
 }
