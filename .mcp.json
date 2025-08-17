@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "null-mcp": {
+      "type": "stdio",
+      "command": "./example.ts",
+      "env": {}
+    }
+  }
+}

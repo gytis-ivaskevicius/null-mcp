@@ -1,0 +1,195 @@
+import { McpServer, ReadResourceCallback, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
+import { ServerOptions, Transport } from "@modelcontextprotocol/sdk"
+import type {
+  CallToolResult,
+  ContentBlock,
+  Implementation,
+  ReadResourceResult,
+  ToolAnnotations,
+} from "@modelcontextprotocol/sdk/types.js"
+import { type ZodRawShape } from "zod"
+
+export type Tool<InputArgs extends ZodRawShape, OutputArgs extends ZodRawShape> = {
+  title?: string
+  description?: string
+  inputSchema?: InputArgs
+  outputSchema?: OutputArgs
+  annotations?: ToolAnnotations
+  callback: ToolCallback<InputArgs>
+  test?: (input: string) => Record<string, unknown>
+}
+
+export type Resource = {
+  uri: string
+  title?: string
+  description?: string
+  mimeType?: string
+  callback: ReadResourceCallback
+  test?: (input: string) => string
+}
+
+export class NullMCP {
+  server: McpServer
+  private _connected = false
+  private _tools: Record<string, Tool<ZodRawShape, ZodRawShape>> = {}
+  private _resources: Record<string, Resource> = {}
+
+  constructor(serverInfo: Implementation, options?: ServerOptions) {
+    if (!serverInfo.name?.trim()) {
+      throw new Error("Server name is required")
+    }
+    if (!serverInfo.version?.trim()) {
+      throw new Error("Server version is required")
+    }
+    this.server = new McpServer(serverInfo, options)
+  }
+
+  registerTools(tools: Record<string, Tool<ZodRawShape, ZodRawShape>>): NullMCP {
+    this._tools = { ...this._tools, ...tools }
+    Object.entries(tools).forEach(([name, tool]) => {
+      try {
+        this.server.registerTool(
+          name,
+          {
+            title: tool.title,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            annotations: tool.annotations,
+          },
+          tool.callback,
+        )
+      } catch (error) {
+        console.error(`Failed to register tool '${name}':`, error)
+        throw error
+      }
+    })
+    return this
+  }
+
+  registerResources(resources: Record<string, Resource>): NullMCP {
+    this._resources = { ...this._resources, ...resources }
+    Object.entries(resources).forEach(([name, resource]) => {
+      try {
+        this.server.registerResource(
+          name,
+          resource.uri,
+          {
+            title: resource.title,
+            description: resource.description,
+            mimeType: resource.mimeType,
+          },
+          resource.callback,
+        )
+      } catch (error) {
+        console.error(`Failed to register resource '${name}':`, error)
+        throw error
+      }
+    })
+    return this
+  }
+
+  async connect(transport?: Transport) {
+    if (this._connected) {
+      throw new Error("Server already connected")
+    }
+
+    const args = Deno.args
+    if (args.length >= 2) {
+      if (args[0] === "tool") {
+        await this.runCliTool(args[1], args.slice(2).join(" "))
+        return
+      }
+      if (args[0] === "resource") {
+        await this.runCliResource(args[1], args.slice(2).join(" "))
+        return
+      }
+    }
+
+    await this.server.connect(transport ?? new StdioServerTransport())
+    this._connected = true
+    console.info("MCP Server started and connected")
+  }
+
+  private async runCliTool(toolName: string, input: string) {
+    const tool = this._tools[toolName]
+    if (!tool) {
+      this.showError(`Tool '${toolName}' not found`, `Available tools: ${Object.keys(this._tools).join(", ")}`)
+    }
+
+    if (!tool.test) {
+      this.showError(`Tool '${toolName}' does not have a test configuration`)
+    }
+
+    try {
+      const args = tool.test(input)
+      const result = await tool.callback(args, this.createCallbackExtra())
+      this.outputTextContent(result.content)
+    } catch (error) {
+      this.showError(`Error running tool '${toolName}':`, error)
+    }
+  }
+
+  private async runCliResource(resourceName: string, input: string) {
+    const resource = this._resources[resourceName]
+    if (!resource) {
+      this.showError(
+        `Resource '${resourceName}' not found`,
+        `Available resources: ${Object.keys(this._resources).join(", ")}`,
+      )
+    }
+
+    if (!resource.test) {
+      this.showError(`Resource '${resourceName}' does not have a test configuration`)
+    }
+
+    try {
+      const uriString = resource.test(input)
+      const result = await resource.callback(new URL(uriString), this.createCallbackExtra())
+      result.contents?.forEach((content) => console.log(content.text || content.blob))
+    } catch (error) {
+      this.showError(`Error reading resource '${resourceName}':`, error)
+    }
+  }
+
+  private createCallbackExtra() {
+    return {
+      signal: new AbortController().signal,
+      requestId: "cli-test",
+      sendNotification: () => Promise.resolve(),
+      sendRequest: () => Promise.resolve({}),
+    }
+  }
+
+  private outputTextContent(content?: { type: string; text?: string }[]) {
+    content
+      ?.filter((it) => it.type === "text")
+      .forEach((it) => console.log(it.text))
+  }
+
+  private showError(message: string, detail?: unknown): never {
+    console.error(message)
+    if (detail) console.error(detail)
+    Deno.exit(1)
+  }
+
+  async close(): Promise<void> {
+    if (this._connected) {
+      await this.server.close()
+      this._connected = false
+      console.info("MCP Server disconnected")
+    }
+  }
+}
+
+export function toolTextContent(text: string): ContentBlock {
+  return { type: "text", text }
+}
+
+export function toolTextResult(text: string): CallToolResult {
+  return { content: [toolTextContent(text)] }
+}
+
+export function resourceTextResult(uri: string, text: string): ReadResourceResult {
+  return { contents: [{ uri, text }] }
+}

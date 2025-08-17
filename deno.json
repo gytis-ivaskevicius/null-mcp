@@ -1,0 +1,16 @@
+{
+  "tasks": {
+    "test": "deno test --allow-run --allow-read --allow-env --no-check test.ts",
+    "check": "deno fmt && deno lint --fix && deno check ."
+  },
+  "imports": {
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.17.3",
+    "zod": "npm:zod@^3.23.8",
+    "@std/testing": "jsr:@std/testing",
+    "@std/expect": "jsr:@std/expect"
+  },
+  "fmt": {
+    "lineWidth": 120,
+    "semiColons": false
+  }
+}
